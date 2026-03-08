@@ -1,0 +1,54 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            Int            @id @default(autoincrement())
+  email         String         @unique
+  passwordHash  String
+  name          String
+  createdAt     DateTime       @default(now())
+  transactions  Transaction[]
+  subscriptions Subscription[]
+}
+
+model Transaction {
+  id                   Int             @id @default(autoincrement())
+  userId               Int
+  type                 TransactionType
+  amount               Float
+  category             String
+  date                 DateTime
+  note                 String?
+  isSubscriptionCharge Boolean         @default(false)
+  createdAt            DateTime        @default(now())
+  user                 User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Subscription {
+  id              Int          @id @default(autoincrement())
+  userId          Int
+  name            String
+  amount          Float
+  billingCycle    BillingCycle
+  nextRenewalDate DateTime
+  category        String
+  isActive        Boolean      @default(true)
+  createdAt       DateTime     @default(now())
+  user            User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+enum TransactionType {
+  INCOME
+  EXPENSE
+}
+
+enum BillingCycle {
+  MONTHLY
+  YEARLY
+}

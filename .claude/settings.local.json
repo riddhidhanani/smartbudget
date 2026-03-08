@@ -1,0 +1,18 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(mkdir -p /c/smartbudget/server)",
+      "Bash(npm init -y)",
+      "Bash(npm install express prisma @prisma/client bcryptjs jsonwebtoken dotenv cors date-fns @anthropic-ai/sdk cookie-parser)",
+      "Bash(npm install --save-dev jest supertest @jest/globals)",
+      "Bash(npx prisma init --datasource-provider postgresql)",
+      "Bash(npm create vite@latest client -- --template react)",
+      "Bash(npm install)",
+      "Bash(npm install react-router-dom axios recharts date-fns)",
+      "Bash(npm install -D tailwindcss @tailwindcss/vite vitest @testing-library/react @testing-library/jest-dom @testing-library/user-event jsdom)",
+      "Bash(npm test)",
+      "Bash(npm install prisma@^6 @prisma/client@^6)",
+      "Bash(npx prisma generate)"
+    ]
+  }
+}
