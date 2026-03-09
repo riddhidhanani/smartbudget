@@ -4,7 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import axios from 'axios';
 
 export default function Login() {
-  const [mode, setMode] = useState('login'); // 'login' | 'register' | 'reset'
+  const [mode, setMode] = useState('login');
   const [form, setForm] = useState({ email: '', password: '', name: '', newPassword: '', confirmPassword: '' });
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
@@ -17,7 +17,6 @@ export default function Login() {
     setError('');
     setSuccess('');
     setLoading(true);
-
     try {
       if (mode === 'login') {
         await login(form.email, form.password);
@@ -26,20 +25,9 @@ export default function Login() {
         await register(form.email, form.password, form.name);
         navigate('/dashboard');
       } else if (mode === 'reset') {
-        if (form.newPassword !== form.confirmPassword) {
-          setError('Passwords do not match');
-          setLoading(false);
-          return;
-        }
-        if (form.newPassword.length < 6) {
-          setError('Password must be at least 6 characters');
-          setLoading(false);
-          return;
-        }
-        await axios.post('/api/auth/reset-password', {
-          email: form.email,
-          newPassword: form.newPassword,
-        }, { withCredentials: true });
+        if (form.newPassword !== form.confirmPassword) { setError('Passwords do not match'); setLoading(false); return; }
+        if (form.newPassword.length < 6) { setError('Password must be at least 6 characters'); setLoading(false); return; }
+        await axios.post('/api/auth/reset-password', { email: form.email, newPassword: form.newPassword }, { withCredentials: true });
         setSuccess('Password reset successfully! You can now sign in.');
         setForm((prev) => ({ ...prev, newPassword: '', confirmPassword: '' }));
       }
@@ -50,176 +38,142 @@ export default function Login() {
     }
   };
 
-  const handleChange = (field) => (e) => {
-    setForm((prev) => ({ ...prev, [field]: e.target.value }));
-    setError('');
-    setSuccess('');
-  };
+  const handleChange = (field) => (e) => { setForm((prev) => ({ ...prev, [field]: e.target.value })); setError(''); setSuccess(''); };
+  const switchMode = (next) => { setMode(next); setError(''); setSuccess(''); };
 
-  const switchMode = (next) => {
-    setMode(next);
-    setError('');
-    setSuccess('');
+  const inp = {
+    width: '100%', border: '1.5px solid #E8EAFF', borderRadius: '12px',
+    padding: '12px 14px', fontSize: '14px', fontFamily: 'Inter, sans-serif',
+    color: '#1A1A2E', background: '#FAFBFF', outline: 'none', transition: 'all 0.2s ease',
   };
+  const lbl = { display: 'block', fontSize: '11px', fontWeight: 600, color: '#8B8FA8', marginBottom: '6px', textTransform: 'uppercase', letterSpacing: '0.5px' };
+  const focus = (e) => { e.target.style.borderColor = '#6C63FF'; e.target.style.boxShadow = '0 0 0 3px rgba(108,99,255,0.12)'; e.target.style.background = '#fff'; };
+  const blur = (e) => { e.target.style.borderColor = '#E8EAFF'; e.target.style.boxShadow = 'none'; e.target.style.background = '#FAFBFF'; };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-indigo-50 to-purple-50 flex items-center justify-center px-4">
-      <div className="w-full max-w-md">
-        <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-indigo-600">SmartBudget</h1>
-          <p className="text-gray-500 mt-2">Track your finances intelligently</p>
+    <div style={{ display: 'flex', minHeight: '100vh', fontFamily: 'Inter, sans-serif' }}>
+      {/* Left — gradient branding */}
+      <div style={{
+        flex: '0 0 44%', display: 'flex', flexDirection: 'column', alignItems: 'center',
+        justifyContent: 'center', padding: '48px',
+        background: 'linear-gradient(145deg, #4B44CC 0%, #6C63FF 55%, #9C94FF 100%)',
+        position: 'relative', overflow: 'hidden',
+      }}>
+        <div style={{ position: 'absolute', top: '-80px', right: '-80px', width: '260px', height: '260px', borderRadius: '50%', background: 'rgba(255,255,255,0.06)' }} />
+        <div style={{ position: 'absolute', bottom: '-100px', left: '-60px', width: '300px', height: '300px', borderRadius: '50%', background: 'rgba(255,255,255,0.05)' }} />
+        <div style={{ position: 'absolute', top: '42%', left: '-40px', width: '140px', height: '140px', borderRadius: '50%', background: 'rgba(255,255,255,0.07)' }} />
+
+        <div style={{ position: 'relative', zIndex: 1, textAlign: 'center', maxWidth: '320px' }}>
+          <div style={{
+            width: '68px', height: '68px', borderRadius: '20px', margin: '0 auto 28px',
+            background: 'rgba(255,255,255,0.18)', backdropFilter: 'blur(10px)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            border: '1px solid rgba(255,255,255,0.3)',
+            boxShadow: '0 8px 32px rgba(0,0,0,0.12)',
+          }}>
+            <span style={{ color: '#fff', fontWeight: 800, fontSize: '30px' }}>$</span>
+          </div>
+          <h1 style={{ color: '#fff', fontSize: '34px', fontWeight: 800, marginBottom: '12px', lineHeight: 1.2 }}>SmartBudget</h1>
+          <p style={{ color: 'rgba(255,255,255,0.72)', fontSize: '15px', lineHeight: 1.7, marginBottom: '36px' }}>
+            Track your finances intelligently. Get AI-powered insights tailored to your spending patterns.
+          </p>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', alignItems: 'flex-start' }}>
+            {['📊  Visual spending analytics', '🤖  AI financial insights', '🔔  Subscription renewal alerts', '💳  Complete transaction history'].map((f) => (
+              <div key={f} style={{
+                background: 'rgba(255,255,255,0.14)', borderRadius: '10px',
+                padding: '9px 16px', color: '#fff', fontSize: '13px', fontWeight: 500,
+                border: '1px solid rgba(255,255,255,0.18)', backdropFilter: 'blur(4px)',
+                width: '100%', textAlign: 'left',
+              }}>{f}</div>
+            ))}
+          </div>
         </div>
+      </div>
 
-        <div className="bg-white rounded-2xl shadow-lg p-8">
+      {/* Right — form */}
+      <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#F0F2FF', padding: '32px' }}>
+        <div style={{ width: '100%', maxWidth: '400px' }}>
+          <div style={{ background: '#fff', borderRadius: '20px', padding: '36px', boxShadow: '0 8px 40px rgba(108,99,255,0.12)' }}>
 
-          {/* Tab switcher — only show for login/register */}
-          {mode !== 'reset' && (
-            <div className="flex rounded-lg bg-gray-100 p-1 mb-6">
-              <button
-                type="button"
-                onClick={() => switchMode('login')}
-                className={`flex-1 py-2 text-sm font-medium rounded-md transition-colors ${
-                  mode === 'login' ? 'bg-white shadow text-indigo-600' : 'text-gray-500'
-                }`}
-              >
-                Sign In
-              </button>
-              <button
-                type="button"
-                onClick={() => switchMode('register')}
-                className={`flex-1 py-2 text-sm font-medium rounded-md transition-colors ${
-                  mode === 'register' ? 'bg-white shadow text-indigo-600' : 'text-gray-500'
-                }`}
-              >
-                Register
-              </button>
-            </div>
-          )}
-
-          {/* Reset password header */}
-          {mode === 'reset' && (
-            <div className="mb-6">
-              <button
-                type="button"
-                onClick={() => switchMode('login')}
-                className="text-indigo-600 text-sm hover:underline flex items-center gap-1 mb-3"
-              >
-                ← Back to Sign In
-              </button>
-              <h2 className="text-lg font-semibold text-gray-800">Reset Password</h2>
-              <p className="text-sm text-gray-500 mt-1">Enter your email and choose a new password.</p>
-            </div>
-          )}
-
-          <form onSubmit={handleSubmit} className="space-y-4">
-            {/* Name — register only */}
-            {mode === 'register' && (
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Name</label>
-                <input
-                  type="text"
-                  value={form.name}
-                  onChange={handleChange('name')}
-                  required
-                  placeholder="Your name"
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                />
-              </div>
-            )}
-
-            {/* Email */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
-              <input
-                type="email"
-                value={form.email}
-                onChange={handleChange('email')}
-                required
-                placeholder="you@example.com"
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-              />
-            </div>
-
-            {/* Password — login & register */}
-            {mode !== 'reset' && (
-              <div>
-                <div className="flex items-center justify-between mb-1">
-                  <label className="block text-sm font-medium text-gray-700">Password</label>
-                  {mode === 'login' && (
-                    <button
-                      type="button"
-                      onClick={() => switchMode('reset')}
-                      className="text-xs text-indigo-500 hover:text-indigo-700 hover:underline"
-                    >
-                      Forgot password?
-                    </button>
-                  )}
-                </div>
-                <input
-                  type="password"
-                  value={form.password}
-                  onChange={handleChange('password')}
-                  required
-                  placeholder="••••••••"
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                />
-              </div>
-            )}
-
-            {/* New password fields — reset only */}
-            {mode === 'reset' && (
+            {mode !== 'reset' ? (
               <>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">New Password</label>
-                  <input
-                    type="password"
-                    value={form.newPassword}
-                    onChange={handleChange('newPassword')}
-                    required
-                    placeholder="••••••••"
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                  />
+                <h2 style={{ fontSize: '22px', fontWeight: 700, color: '#1A1A2E', marginBottom: '4px' }}>
+                  {mode === 'login' ? 'Welcome back 👋' : 'Create account'}
+                </h2>
+                <p style={{ fontSize: '13px', color: '#8B8FA8', marginBottom: '22px' }}>
+                  {mode === 'login' ? 'Sign in to your SmartBudget account' : 'Start tracking your finances today'}
+                </p>
+                <div style={{ display: 'flex', background: '#F0F2FF', borderRadius: '10px', padding: '4px', marginBottom: '24px' }}>
+                  {[['login', 'Sign In'], ['register', 'Register']].map(([m, label]) => (
+                    <button key={m} type="button" onClick={() => switchMode(m)} style={{
+                      flex: 1, padding: '8px', borderRadius: '8px', border: 'none', cursor: 'pointer',
+                      fontSize: '13px', fontWeight: 600, fontFamily: 'Inter, sans-serif', transition: 'all 0.2s ease',
+                      background: mode === m ? '#fff' : 'transparent',
+                      color: mode === m ? '#6C63FF' : '#8B8FA8',
+                      boxShadow: mode === m ? '0 2px 8px rgba(108,99,255,0.12)' : 'none',
+                    }}>{label}</button>
+                  ))}
                 </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Confirm New Password</label>
-                  <input
-                    type="password"
-                    value={form.confirmPassword}
-                    onChange={handleChange('confirmPassword')}
-                    required
-                    placeholder="••••••••"
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                  />
-                </div>
+              </>
+            ) : (
+              <>
+                <button type="button" onClick={() => switchMode('login')} style={{ background: 'none', border: 'none', color: '#6C63FF', fontSize: '13px', fontWeight: 500, cursor: 'pointer', padding: 0, marginBottom: '14px', fontFamily: 'Inter, sans-serif' }}>
+                  ← Back to Sign In
+                </button>
+                <h2 style={{ fontSize: '22px', fontWeight: 700, color: '#1A1A2E', marginBottom: '4px' }}>Reset Password</h2>
+                <p style={{ fontSize: '13px', color: '#8B8FA8', marginBottom: '22px' }}>Enter your email and choose a new password.</p>
               </>
             )}
 
-            {error && (
-              <p className="text-red-500 text-sm bg-red-50 rounded-lg p-3">{error}</p>
-            )}
-            {success && (
-              <p className="text-green-600 text-sm bg-green-50 rounded-lg p-3">{success}</p>
-            )}
+            <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              {mode === 'register' && (
+                <div>
+                  <label style={lbl}>Full Name</label>
+                  <input type="text" value={form.name} onChange={handleChange('name')} required placeholder="Your name" style={inp} onFocus={focus} onBlur={blur} />
+                </div>
+              )}
+              <div>
+                <label style={lbl}>Email Address</label>
+                <input type="email" value={form.email} onChange={handleChange('email')} required placeholder="you@example.com" style={inp} onFocus={focus} onBlur={blur} />
+              </div>
+              {mode !== 'reset' && (
+                <div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                    <label style={{ ...lbl, marginBottom: 0 }}>Password</label>
+                    {mode === 'login' && (
+                      <button type="button" onClick={() => switchMode('reset')} style={{ background: 'none', border: 'none', color: '#6C63FF', fontSize: '12px', cursor: 'pointer', fontFamily: 'Inter, sans-serif' }}>
+                        Forgot password?
+                      </button>
+                    )}
+                  </div>
+                  <input type="password" value={form.password} onChange={handleChange('password')} required placeholder="••••••••" style={inp} onFocus={focus} onBlur={blur} />
+                </div>
+              )}
+              {mode === 'reset' && (
+                <>
+                  <div>
+                    <label style={lbl}>New Password</label>
+                    <input type="password" value={form.newPassword} onChange={handleChange('newPassword')} required placeholder="••••••••" style={inp} onFocus={focus} onBlur={blur} />
+                  </div>
+                  <div>
+                    <label style={lbl}>Confirm New Password</label>
+                    <input type="password" value={form.confirmPassword} onChange={handleChange('confirmPassword')} required placeholder="••••••••" style={inp} onFocus={focus} onBlur={blur} />
+                  </div>
+                </>
+              )}
 
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full bg-indigo-600 text-white py-2.5 rounded-lg font-medium hover:bg-indigo-700 disabled:opacity-50 transition-colors"
-            >
-              {loading
-                ? 'Please wait...'
-                : mode === 'login'
-                ? 'Sign In'
-                : mode === 'register'
-                ? 'Create Account'
-                : 'Reset Password'}
-            </button>
-          </form>
+              {error && <div style={{ background: '#FFF0F0', border: '1px solid #FFD0D0', borderRadius: '10px', padding: '10px 14px', color: '#CC3333', fontSize: '13px' }}>{error}</div>}
+              {success && <div style={{ background: '#F0FFF8', border: '1px solid #B0F0D4', borderRadius: '10px', padding: '10px 14px', color: '#1A7A4A', fontSize: '13px' }}>{success}</div>}
 
-          <p className="text-center text-sm text-gray-500 mt-4">
-            Demo: <span className="font-mono">demo@smartbudget.com</span> /{' '}
-            <span className="font-mono">demo1234</span>
-          </p>
+              <button type="submit" disabled={loading} className="btn-primary" style={{ width: '100%', justifyContent: 'center', padding: '13px', fontSize: '15px', marginTop: '4px' }}>
+                {loading ? 'Please wait...' : mode === 'login' ? 'Sign In →' : mode === 'register' ? 'Create Account →' : 'Reset Password →'}
+              </button>
+            </form>
+
+            <p style={{ textAlign: 'center', fontSize: '12px', color: '#B0B4CC', marginTop: '20px' }}>
+              Demo: <span style={{ fontFamily: 'monospace', color: '#6C63FF' }}>demo@smartbudget.com</span> / <span style={{ fontFamily: 'monospace', color: '#6C63FF' }}>demo1234</span>
+            </p>
+          </div>
         </div>
       </div>
     </div>

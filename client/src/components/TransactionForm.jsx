@@ -2,8 +2,8 @@ import { useState } from 'react';
 import { format } from 'date-fns';
 
 const CATEGORIES = [
-  'Food', 'Transport', 'Entertainment', 'Housing', 'Healthcare',
-  'Education', 'Shopping', 'Utilities', 'Salary', 'Freelance',
+  'Food', 'Transport', 'Entertainment', 'Salary','Housing', 'Healthcare',
+  'Education', 'Shopping', 'Utilities', 'Freelance',
   'Investment', 'Other',
 ];
 

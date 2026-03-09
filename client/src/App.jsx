@@ -1,10 +1,22 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
 import ProtectedRoute from './components/ProtectedRoute';
+import Sidebar from './components/Sidebar';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import Transactions from './pages/Transactions';
 import Subscriptions from './pages/Subscriptions';
+
+function AppLayout({ children }) {
+  return (
+    <div style={{ display: 'flex', minHeight: '100vh', backgroundColor: '#F0F2FF' }}>
+      <Sidebar />
+      <main style={{ flex: 1, marginLeft: '240px', padding: '32px', minHeight: '100vh' }}>
+        {children}
+      </main>
+    </div>
+  );
+}
 
 export default function App() {
   return (
@@ -16,7 +28,7 @@ export default function App() {
             path="/dashboard"
             element={
               <ProtectedRoute>
-                <Dashboard />
+                <AppLayout><Dashboard /></AppLayout>
               </ProtectedRoute>
             }
           />
@@ -24,7 +36,7 @@ export default function App() {
             path="/transactions"
             element={
               <ProtectedRoute>
-                <Transactions />
+                <AppLayout><Transactions /></AppLayout>
               </ProtectedRoute>
             }
           />
@@ -32,7 +44,7 @@ export default function App() {
             path="/subscriptions"
             element={
               <ProtectedRoute>
-                <Subscriptions />
+                <AppLayout><Subscriptions /></AppLayout>
               </ProtectedRoute>
             }
           />

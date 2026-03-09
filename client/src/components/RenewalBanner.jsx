@@ -4,14 +4,10 @@ export default function RenewalBanner({ alerts }) {
   if (!alerts || alerts.length === 0) return null;
 
   return (
-    <div data-testid="renewal-banner" className="mb-6 space-y-2">
+    <div data-testid="renewal-banner" style={{ marginBottom: '24px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
       {alerts.map((sub) => {
         const daysLeft = differenceInCalendarDays(new Date(sub.nextRenewalDate), new Date());
         const isUrgent = daysLeft <= 1;
-
-        const bgClass = isUrgent
-          ? 'bg-red-50 border-red-400 text-red-800'
-          : 'bg-orange-50 border-orange-400 text-orange-800';
 
         const label = daysLeft === 0
           ? 'today'
@@ -22,16 +18,26 @@ export default function RenewalBanner({ alerts }) {
         return (
           <div
             key={sub.id}
-            className={`border-l-4 p-4 rounded-r-lg ${bgClass}`}
             role="alert"
+            style={{
+              display: 'inline-flex', alignItems: 'center', gap: '10px',
+              padding: '12px 20px', borderRadius: '50px',
+              background: isUrgent
+                ? 'linear-gradient(135deg, #FF6B6B 0%, #FF4444 100%)'
+                : 'linear-gradient(135deg, #FF6B35 0%, #FF8C00 100%)',
+              color: '#FFFFFF',
+              boxShadow: isUrgent
+                ? '0 4px 16px rgba(255, 107, 107, 0.35)'
+                : '0 4px 16px rgba(255, 107, 53, 0.35)',
+              fontSize: '13px', fontWeight: 600,
+              fontFamily: 'Inter, sans-serif',
+            }}
           >
-            <div className="flex items-center gap-2">
-              <span className="font-semibold">{isUrgent ? '🔴' : '🟠'} Renewal Alert:</span>
-              <span>
-                <strong>{sub.name}</strong> renews {label} — ${Number(sub.amount).toFixed(2)}/
-                {sub.billingCycle === 'MONTHLY' ? 'mo' : 'yr'}
-              </span>
-            </div>
+            <span style={{ fontSize: '16px' }}>🔔</span>
+            <span>
+              <strong>{sub.name}</strong> renews {label} — ${Number(sub.amount).toFixed(2)}/
+              {sub.billingCycle === 'MONTHLY' || sub.billingCycle === 'monthly' ? 'mo' : 'yr'}
+            </span>
           </div>
         );
       })}
