@@ -6,14 +6,11 @@ export default function RenewalBanner({ alerts }) {
   return (
     <div data-testid="renewal-banner" style={{ marginBottom: '24px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
       {alerts.map((sub) => {
-        const daysLeft = differenceInCalendarDays(new Date(sub.nextRenewalDate), new Date());
-        const isUrgent = daysLeft <= 1;
+        const raw = differenceInCalendarDays(new Date(sub.nextRenewalDate), new Date());
+        const daysLeft = Math.max(0, raw);
+        const isToday = daysLeft === 0;
 
-        const label = daysLeft === 0
-          ? 'today'
-          : daysLeft === 1
-          ? 'tomorrow'
-          : `in ${daysLeft} days`;
+        const label = isToday ? 'today' : daysLeft === 1 ? 'tomorrow' : `in ${daysLeft} days`;
 
         return (
           <div
@@ -22,18 +19,18 @@ export default function RenewalBanner({ alerts }) {
             style={{
               display: 'inline-flex', alignItems: 'center', gap: '10px',
               padding: '12px 20px', borderRadius: '50px',
-              background: isUrgent
+              background: isToday
                 ? 'linear-gradient(135deg, #FF6B6B 0%, #FF4444 100%)'
                 : 'linear-gradient(135deg, #FF6B35 0%, #FF8C00 100%)',
               color: '#FFFFFF',
-              boxShadow: isUrgent
+              boxShadow: isToday
                 ? '0 4px 16px rgba(255, 107, 107, 0.35)'
                 : '0 4px 16px rgba(255, 107, 53, 0.35)',
               fontSize: '13px', fontWeight: 600,
               fontFamily: 'Inter, sans-serif',
             }}
           >
-            <span style={{ fontSize: '16px' }}>🔔</span>
+            <span style={{ fontSize: '16px' }}>{isToday ? '🔴' : '🔔'}</span>
             <span>
               <strong>{sub.name}</strong> renews {label} — ${Number(sub.amount).toFixed(2)}/
               {sub.billingCycle === 'MONTHLY' || sub.billingCycle === 'monthly' ? 'mo' : 'yr'}

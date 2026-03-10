@@ -41,7 +41,34 @@ router.get('/', async (req, res) => {
       where: { userId: req.userId },
       orderBy: { nextRenewalDate: 'asc' },
     });
-    return res.json(subscriptions);
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    // Auto-advance any past/today renewal dates
+    const updated = await Promise.all(subscriptions.map(async (sub) => {
+      const renewal = new Date(sub.nextRenewalDate);
+      renewal.setHours(0, 0, 0, 0);
+      if (renewal <= today) {
+        let next = new Date(renewal);
+        // Advance until it's in the future
+        while (next <= today) {
+          if (sub.billingCycle === 'MONTHLY') {
+            next.setMonth(next.getMonth() + 1);
+          } else {
+            next.setFullYear(next.getFullYear() + 1);
+          }
+        }
+        const saved = await prisma.subscription.update({
+          where: { id: sub.id },
+          data: { nextRenewalDate: next },
+        });
+        return saved;
+      }
+      return sub;
+    }));
+
+    return res.json(updated);
   } catch (err) {
     console.error(err);
     return res.status(500).json({ error: 'Server error' });

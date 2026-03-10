@@ -22,9 +22,8 @@ function getServiceIcon(name) {
 }
 
 function getDaysConfig(days) {
-  if (days < 0)  return { label: 'Overdue', bg: '#FF6B6B22', color: '#FF6B6B', border: '#FF6B6B' };
-  if (days <= 3) return { label: `${days}d`, bg: '#FF6B3522', color: '#FF6B35', border: '#FF6B35' };
-  if (days <= 7) return { label: `${days}d`, bg: '#FFB30022', color: '#FFB300', border: '#FFB300' };
+  if (days === 0) return { label: 'Today', bg: '#FF6B6B22', color: '#FF6B6B', border: '#FF6B6B' };
+  if (days <= 3)  return { label: `${days}d`, bg: '#FF6B3522', color: '#FF6B35', border: '#FF6B35' };
   return { label: `${days}d`, bg: '#00D4AA22', color: '#00D4AA', border: '#00D4AA' };
 }
 
@@ -124,7 +123,7 @@ export default function Subscriptions() {
   const getDays = dateStr => {
     if (!dateStr) return null;
     const d = new Date(dateStr.slice(0, 10) + 'T00:00:00');
-    return differenceInCalendarDays(d, new Date());
+    return Math.max(0, differenceInCalendarDays(d, new Date()));
   };
 
   const sorted = [...subscriptions].sort((a, b) => {
