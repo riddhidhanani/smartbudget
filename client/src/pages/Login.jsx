@@ -169,10 +169,6 @@ export default function Login() {
                 {loading ? 'Please wait...' : mode === 'login' ? 'Sign In →' : mode === 'register' ? 'Create Account →' : 'Reset Password →'}
               </button>
             </form>
-
-            <p style={{ textAlign: 'center', fontSize: '12px', color: '#B0B4CC', marginTop: '20px' }}>
-              Demo: <span style={{ fontFamily: 'monospace', color: '#6C63FF' }}>demo@smartbudget.com</span> / <span style={{ fontFamily: 'monospace', color: '#6C63FF' }}>demo1234</span>
-            </p>
           </div>
         </div>
       </div>
