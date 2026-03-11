@@ -6,7 +6,26 @@ const router = express.Router();
 
 router.use(authenticate);
 
-// GET /api/subscriptions/alerts  (must come before /:id routes)
+// Add exactly 1 month, clamping to last day of target month on overflow
+function addOneMonth(date) {
+  const d = new Date(date);
+  const origDay = d.getDate();
+  d.setMonth(d.getMonth() + 1);
+  // If JS rolled over (e.g. Jan 31 → Mar 3), step back to last day of intended month
+  if (d.getDate() !== origDay) {
+    d.setDate(0);
+  }
+  return d;
+}
+
+// Billing date for month M: same day as startDate, clamped to last day of M
+function billingDateInMonth(startDate, year, month) {
+  const billingDay = new Date(startDate).getDate();
+  const lastDay = new Date(year, month, 0).getDate(); // month is 1-based here
+  return new Date(year, month - 1, Math.min(billingDay, lastDay));
+}
+
+// GET /api/subscriptions/alerts — subscriptions billing within 3 days
 router.get('/alerts', async (req, res) => {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
@@ -16,57 +35,89 @@ router.get('/alerts', async (req, res) => {
   threeDaysLater.setHours(23, 59, 59, 999);
 
   try {
-    const alerts = await prisma.subscription.findMany({
+    const subs = await prisma.subscription.findMany({
       where: {
         userId: req.userId,
-        isActive: true,
-        nextRenewalDate: {
-          gte: today,
-          lte: threeDaysLater,
-        },
+        cancelledAt: null,
+        nextBillingDate: { gte: today, lte: threeDaysLater },
       },
-      orderBy: { nextRenewalDate: 'asc' },
+      orderBy: { nextBillingDate: 'asc' },
     });
-    return res.json(alerts);
+    return res.json(subs);
   } catch (err) {
     console.error(err);
     return res.status(500).json({ error: 'Server error' });
   }
 });
 
-// GET /api/subscriptions
+// GET /api/subscriptions/monthly-cost?month=3&year=2026
+router.get('/monthly-cost', async (req, res) => {
+  const { month, year } = req.query;
+  if (!month || !year) return res.status(400).json({ error: 'month and year required' });
+
+  const m = Number(month);
+  const y = Number(year);
+
+  try {
+    const subs = await prisma.subscription.findMany({ where: { userId: req.userId } });
+
+    let total = 0;
+    let count = 0;
+
+    for (const s of subs) {
+      const billing = billingDateInMonth(s.startDate, y, m);
+      billing.setHours(0, 0, 0, 0);
+
+      const started = new Date(s.startDate);
+      started.setHours(0, 0, 0, 0);
+
+      // Not started yet this billing cycle
+      if (started > billing) continue;
+      // Cancelled before or on billing date
+      if (s.cancelledAt && new Date(s.cancelledAt) <= billing) continue;
+
+      total += s.amount;
+      count += 1;
+    }
+
+    return res.json({ total: +total.toFixed(2), count });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// GET /api/subscriptions — all subs with auto-advance for active ones
 router.get('/', async (req, res) => {
   try {
     const subscriptions = await prisma.subscription.findMany({
       where: { userId: req.userId },
-      orderBy: { nextRenewalDate: 'asc' },
+      orderBy: { nextBillingDate: 'asc' },
     });
 
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
-    // Auto-advance any past/today renewal dates
-    const updated = await Promise.all(subscriptions.map(async (sub) => {
-      const renewal = new Date(sub.nextRenewalDate);
-      renewal.setHours(0, 0, 0, 0);
-      if (renewal <= today) {
-        let next = new Date(renewal);
-        // Advance until it's in the future
-        while (next <= today) {
-          if (sub.billingCycle === 'MONTHLY') {
-            next.setMonth(next.getMonth() + 1);
-          } else {
-            next.setFullYear(next.getFullYear() + 1);
+    const updated = await Promise.all(
+      subscriptions.map(async (sub) => {
+        if (sub.cancelledAt) return sub; // don't advance cancelled subs
+
+        let billing = new Date(sub.nextBillingDate);
+        billing.setHours(0, 0, 0, 0);
+
+        if (billing <= today) {
+          while (billing <= today) {
+            billing = addOneMonth(billing);
           }
+          const saved = await prisma.subscription.update({
+            where: { id: sub.id },
+            data: { nextBillingDate: billing },
+          });
+          return saved;
         }
-        const saved = await prisma.subscription.update({
-          where: { id: sub.id },
-          data: { nextRenewalDate: next },
-        });
-        return saved;
-      }
-      return sub;
-    }));
+        return sub;
+      })
+    );
 
     return res.json(updated);
   } catch (err) {
@@ -77,26 +128,25 @@ router.get('/', async (req, res) => {
 
 // POST /api/subscriptions
 router.post('/', async (req, res) => {
-  const { name, amount, billingCycle, nextRenewalDate, category, isActive } = req.body;
+  const { name, amount, startDate, category } = req.body;
 
-  if (!name || !amount || !billingCycle || !nextRenewalDate || !category) {
-    return res.status(400).json({ error: 'name, amount, billingCycle, nextRenewalDate, and category are required' });
-  }
-
-  if (!['MONTHLY', 'YEARLY'].includes(billingCycle)) {
-    return res.status(400).json({ error: 'billingCycle must be MONTHLY or YEARLY' });
+  if (!name || !amount || !startDate || !category) {
+    return res.status(400).json({ error: 'name, amount, startDate, and category are required' });
   }
 
   try {
+    const start = new Date(startDate);
+    // nextBillingDate = startDate + exactly 1 month
+    const next = addOneMonth(start);
+
     const subscription = await prisma.subscription.create({
       data: {
         userId: req.userId,
         name,
         amount: parseFloat(amount),
-        billingCycle,
-        nextRenewalDate: new Date(nextRenewalDate),
+        nextBillingDate: next,
         category,
-        isActive: isActive !== undefined ? isActive : true,
+        startDate: start,
       },
     });
     return res.status(201).json(subscription);
@@ -106,10 +156,34 @@ router.post('/', async (req, res) => {
   }
 });
 
+// PUT /api/subscriptions/:id/cancel — soft cancel
+router.put('/:id/cancel', async (req, res) => {
+  const id = parseInt(req.params.id);
+
+  try {
+    const existing = await prisma.subscription.findUnique({ where: { id } });
+    if (!existing || existing.userId !== req.userId) {
+      return res.status(404).json({ error: 'Subscription not found' });
+    }
+    if (existing.cancelledAt) {
+      return res.status(400).json({ error: 'Already cancelled' });
+    }
+
+    const cancelled = await prisma.subscription.update({
+      where: { id },
+      data: { cancelledAt: new Date() },
+    });
+    return res.json(cancelled);
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: 'Server error' });
+  }
+});
+
 // PUT /api/subscriptions/:id
 router.put('/:id', async (req, res) => {
   const id = parseInt(req.params.id);
-  const { name, amount, billingCycle, nextRenewalDate, category, isActive } = req.body;
+  const { name, amount, category, startDate } = req.body;
 
   try {
     const existing = await prisma.subscription.findUnique({ where: { id } });
@@ -117,17 +191,17 @@ router.put('/:id', async (req, res) => {
       return res.status(404).json({ error: 'Subscription not found' });
     }
 
-    const updated = await prisma.subscription.update({
-      where: { id },
-      data: {
-        ...(name && { name }),
-        ...(amount && { amount: parseFloat(amount) }),
-        ...(billingCycle && { billingCycle }),
-        ...(nextRenewalDate && { nextRenewalDate: new Date(nextRenewalDate) }),
-        ...(category && { category }),
-        ...(isActive !== undefined && { isActive }),
-      },
-    });
+    const updateData = {};
+    if (name) updateData.name = name;
+    if (amount) updateData.amount = parseFloat(amount);
+    if (category) updateData.category = category;
+    if (startDate) {
+      const start = new Date(startDate);
+      updateData.startDate = start;
+      updateData.nextBillingDate = addOneMonth(start);
+    }
+
+    const updated = await prisma.subscription.update({ where: { id }, data: updateData });
     return res.json(updated);
   } catch (err) {
     console.error(err);
@@ -135,7 +209,7 @@ router.put('/:id', async (req, res) => {
   }
 });
 
-// DELETE /api/subscriptions/:id
+// DELETE /api/subscriptions/:id — hard delete
 router.delete('/:id', async (req, res) => {
   const id = parseInt(req.params.id);
 

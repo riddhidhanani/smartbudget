@@ -7,6 +7,7 @@ import {
 import { format, subMonths } from 'date-fns';
 import {
   getTransactions, getSubscriptions, getSubscriptionAlerts, generateSummary,
+  getSubscriptionMonthlyCost,
 } from '../lib/api';
 import RenewalBanner from '../components/RenewalBanner';
 
@@ -101,8 +102,10 @@ export default function Dashboard() {
   const [month, setMonth] = useState(now.getMonth() + 1);
   const [year, setYear] = useState(now.getFullYear());
   const [transactions, setTransactions] = useState([]);      // selected month
-  const [allTransactions, setAllTransactions] = useState([]); // last 6 months, for charts
+  const [allTransactions, setAllTransactions] = useState([]); // all tx, for 6-month chart
   const [subscriptions, setSubscriptions] = useState([]);
+  const [subMonthlyCost, setSubMonthlyCost] = useState(0);   // accurate cost for selected month
+  const [subActiveCount, setSubActiveCount] = useState(0);
   const [alerts, setAlerts] = useState([]);
   const [summary, setSummary] = useState(null);
   const [summaryLoading, setSummaryLoading] = useState(false);
@@ -111,16 +114,19 @@ export default function Dashboard() {
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      const [txRes, allTxRes, subRes, alertRes] = await Promise.all([
+      const [txRes, allTxRes, subRes, alertRes, costRes] = await Promise.all([
         getTransactions({ month, year }),
-        getTransactions({}), // no month/year = all transactions, used for 6-month bar chart
+        getTransactions({}),
         getSubscriptions(),
         getSubscriptionAlerts(),
+        getSubscriptionMonthlyCost(month, year),
       ]);
       setTransactions(txRes.data);
       setAllTransactions(allTxRes.data);
       setSubscriptions(subRes.data);
       setAlerts(alertRes.data);
+      setSubMonthlyCost(costRes.data.total);
+      setSubActiveCount(costRes.data.count);
     } catch (err) {
       console.error(err);
     } finally {
@@ -132,8 +138,7 @@ export default function Dashboard() {
 
   const totalIncome   = transactions.filter(t => t.type === 'INCOME').reduce((s, t) => s + t.amount, 0);
   const totalExpenses = transactions.filter(t => t.type === 'EXPENSE').reduce((s, t) => s + t.amount, 0);
-  const subTotal = subscriptions.filter(s => s.isActive).reduce((s, sub) => s + (sub.billingCycle === 'YEARLY' ? sub.amount / 12 : sub.amount), 0);
-  const netBalance = totalIncome - totalExpenses - subTotal;
+  const netBalance    = totalIncome - totalExpenses - subMonthlyCost;
 
   const expenseByCategory = {};
   transactions.filter(t => t.type === 'EXPENSE').forEach(t => {
@@ -219,7 +224,10 @@ export default function Dashboard() {
         </div>
       </div>
 
-      <RenewalBanner alerts={alerts} />
+      {/* Renewal banner only relevant for current month */}
+      {month === now.getMonth() + 1 && year === now.getFullYear() && (
+        <RenewalBanner alerts={alerts} />
+      )}
 
       {loading ? (
         <div style={{ textAlign: 'center', padding: '80px 0', color: '#8B8FA8', fontSize: '14px' }}>Loading your data...</div>
@@ -229,7 +237,7 @@ export default function Dashboard() {
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '16px', marginBottom: '24px' }}>
             <SummaryCard label="Total Income"   value={`$${totalIncome.toFixed(2)}`}   icon="💰" gradient="linear-gradient(135deg, #00D4AA 0%, #00B894 100%)" />
             <SummaryCard label="Total Expenses" value={`$${totalExpenses.toFixed(2)}`} icon="💸" gradient="linear-gradient(135deg, #FF6B6B 0%, #FF4757 100%)" />
-            <SummaryCard label="Subscriptions"  value={`$${subTotal.toFixed(2)}/mo`}   icon="🔄" sub={`${subscriptions.filter(s => s.isActive).length} active`} gradient="linear-gradient(135deg, #FF6B35 0%, #FF8C42 100%)" />
+            <SummaryCard label="Subscriptions"  value={`$${subMonthlyCost.toFixed(2)}/mo`} icon="🔄" sub={`${subActiveCount} billed this month`} gradient="linear-gradient(135deg, #FF6B35 0%, #FF8C42 100%)" />
             <SummaryCard
               label="Net Balance"
               value={`$${netBalance.toFixed(2)}`}
@@ -375,7 +383,6 @@ export default function Dashboard() {
                 <div style={{ width: '38px', height: '38px', borderRadius: '10px', background: 'linear-gradient(135deg, #6C63FF, #9C94FF)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '18px' }}>🤖</div>
                 <div>
                   <h2 style={{ fontSize: '14px', fontWeight: 600, color: '#1A1A2E', marginBottom: '1px' }}>AI Financial Insights</h2>
-                  <p style={{ fontSize: '11px', color: '#8B8FA8', margin: 0 }}>Powered by Claude AI</p>
                 </div>
               </div>
               <button onClick={handleGenerateSummary} disabled={summaryLoading} className="btn-primary" style={{ fontSize: '13px', padding: '9px 18px' }}>

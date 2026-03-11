@@ -31,24 +31,19 @@ model Transaction {
 }
 
 model Subscription {
-  id              Int          @id @default(autoincrement())
-  userId          Int
-  name            String
-  amount          Float
-  billingCycle    BillingCycle
-  nextRenewalDate DateTime
-  category        String
-  isActive        Boolean      @default(true)
-  createdAt       DateTime     @default(now())
-  user            User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id             Int       @id @default(autoincrement())
+  userId         Int
+  name           String
+  amount         Float
+  nextBillingDate DateTime
+  category       String
+  startDate      DateTime  @default(now())
+  cancelledAt    DateTime?
+  createdAt      DateTime  @default(now())
+  user           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 enum TransactionType {
   INCOME
   EXPENSE
-}
-
-enum BillingCycle {
-  MONTHLY
-  YEARLY
 }

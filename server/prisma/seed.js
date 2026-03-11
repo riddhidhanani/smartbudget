@@ -4,10 +4,14 @@ const bcrypt = require('bcryptjs');
 
 const prisma = new PrismaClient();
 
-function addDays(date, days) {
-  const d = new Date(date);
-  d.setDate(d.getDate() + days);
-  return d;
+// Calculate nextBillingDate: billingDay = startDate.getDate(), find next occurrence >= today
+function calcNextBillingDate(startDate, referenceDate) {
+  const ref = referenceDate || new Date();
+  ref.setHours(0, 0, 0, 0);
+  const billingDay = new Date(startDate).getDate();
+  let next = new Date(ref.getFullYear(), ref.getMonth(), billingDay);
+  if (next < ref) next.setMonth(next.getMonth() + 1);
+  return next;
 }
 
 async function main() {
@@ -29,7 +33,7 @@ async function main() {
   console.log(`Created user: ${user.email}`);
 
   // 10 transactions for February 2026
-  const feb = (day) => new Date(2026, 1, day); // month is 0-indexed
+  const feb = (day) => new Date(2026, 1, day);
 
   await prisma.transaction.createMany({
     data: [
@@ -49,45 +53,50 @@ async function main() {
   console.log('Created 10 transactions for February 2026');
 
   const today = new Date();
-  today.setHours(0, 0, 0, 0);
+
+  // Netflix: started Jan 12 2026, bills on the 12th
+  const netflixStart = new Date(2026, 0, 12); // Jan 12
+  // Spotify: started Feb 5 2026, bills on the 5th
+  const spotifyStart = new Date(2026, 1, 5);  // Feb 5
+  // Adobe CC: started Mar 1 2026, cancelled Apr 15 2026
+  const adobeStart = new Date(2026, 2, 1);    // Mar 1
+  // GitHub Pro: started Feb 1 2026, bills on the 1st
+  const githubStart = new Date(2026, 1, 1);   // Feb 1
 
   await prisma.subscription.createMany({
     data: [
       {
         userId: user.id,
         name: 'Netflix',
-        amount: 15.99,
-        billingCycle: 'MONTHLY',
-        nextRenewalDate: addDays(today, 2),
+        amount: 15.00,
+        nextBillingDate: calcNextBillingDate(netflixStart, new Date(today)),
         category: 'Entertainment',
-        isActive: true,
+        startDate: netflixStart,
       },
       {
         userId: user.id,
         name: 'Spotify',
         amount: 9.99,
-        billingCycle: 'MONTHLY',
-        nextRenewalDate: addDays(today, 18),
+        nextBillingDate: calcNextBillingDate(spotifyStart, new Date(today)),
         category: 'Music',
-        isActive: true,
+        startDate: spotifyStart,
       },
       {
         userId: user.id,
         name: 'Adobe CC',
         amount: 54.99,
-        billingCycle: 'MONTHLY',
-        nextRenewalDate: addDays(today, 1),
+        nextBillingDate: calcNextBillingDate(adobeStart, new Date(today)),
         category: 'Software',
-        isActive: true,
+        startDate: adobeStart,
+        cancelledAt: new Date(2026, 3, 15), // Apr 15 2026
       },
       {
         userId: user.id,
         name: 'GitHub Pro',
         amount: 4.00,
-        billingCycle: 'MONTHLY',
-        nextRenewalDate: addDays(today, 22),
+        nextBillingDate: calcNextBillingDate(githubStart, new Date(today)),
         category: 'Software',
-        isActive: true,
+        startDate: githubStart,
       },
     ],
   });

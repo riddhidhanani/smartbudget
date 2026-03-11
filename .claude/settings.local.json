@@ -12,7 +12,14 @@
       "Bash(npm install -D tailwindcss @tailwindcss/vite vitest @testing-library/react @testing-library/jest-dom @testing-library/user-event jsdom)",
       "Bash(npm test)",
       "Bash(npm install prisma@^6 @prisma/client@^6)",
-      "Bash(npx prisma generate)"
+      "Bash(npx prisma generate)",
+      "Bash(npx prisma migrate dev --name add_subscription_cancellation)",
+      "Bash(npx prisma migrate dev --name rewrite_subscription_model)",
+      "Bash(npx prisma migrate dev --create-only --name rewrite_subscription_model)",
+      "Bash(npx prisma db push --force-reset)",
+      "Bash(c:/smartbudget/server/prisma/migrations/20260310220000_rewrite_subscription_model/migration.sql:*)",
+      "Bash(npx prisma migrate deploy)",
+      "Bash(node prisma/seed.js)"
     ]
   }
 }

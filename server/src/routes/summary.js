@@ -1,5 +1,6 @@
 const express = require('express');
 const Anthropic = require('@anthropic-ai/sdk');
+const prisma = require('../lib/prisma');
 const { authenticate } = require('../middleware/auth');
 
 const router = express.Router();
@@ -31,16 +32,45 @@ router.post('/', async (req, res) => {
     .map(([cat, amt]) => `${cat}: $${amt.toFixed(2)}`)
     .join(', ');
 
-  const monthlySubTotal = subscriptions
-    .filter((s) => s.isActive)
-    .reduce((sum, s) => {
-      if (s.billingCycle === 'YEARLY') return sum + s.amount / 12;
-      return sum + s.amount;
-    }, 0);
+  const monthlySubTotal = subscriptions.reduce((sum, s) => sum + s.amount, 0);
 
-  const monthLabel = month && year ? `${new Date(year, month - 1).toLocaleString('default', { month: 'long' })} ${year}` : 'this month';
+  const monthLabel = month && year
+    ? `${new Date(year, month - 1).toLocaleString('default', { month: 'long' })} ${year}`
+    : 'this month';
 
   const topCategory = Object.entries(expensesByCategory).sort((a, b) => b[1] - a[1])[0];
+
+  // Fetch subscriptions cancelled this month
+  let cancelledSection = '';
+  if (month && year) {
+    try {
+      const m = Number(month);
+      const y = Number(year);
+      const monthStart = new Date(`${y}-${String(m).padStart(2, '0')}-01T00:00:00.000Z`);
+      const nextM = m === 12 ? 1 : m + 1;
+      const nextY = m === 12 ? y + 1 : y;
+      const monthEnd = new Date(`${nextY}-${String(nextM).padStart(2, '0')}-01T00:00:00.000Z`);
+
+      const cancelled = await prisma.subscription.findMany({
+        where: {
+          userId: req.userId,
+          cancelledAt: { gte: monthStart, lt: monthEnd },
+        },
+      });
+
+      if (cancelled.length > 0) {
+        const lines = cancelled.map((s) => {
+          const monthlyCost = s.billingCycle === 'YEARLY' ? s.amount / 12 : s.amount;
+          const yearlySaving = monthlyCost * 12;
+          const cancelDate = s.cancelledAt.toISOString().slice(0, 10);
+          return `- ${s.name}: $${monthlyCost.toFixed(2)}/mo, cancelled on ${cancelDate}, saves $${yearlySaving.toFixed(2)}/year going forward`;
+        });
+        cancelledSection = `\n- Subscriptions cancelled this month:\n${lines.join('\n')}`;
+      }
+    } catch (err) {
+      console.error('Failed to fetch cancelled subscriptions for summary:', err);
+    }
+  }
 
   const prompt = `You are a personal finance assistant. Analyze this financial data for ${monthLabel} and respond ONLY with a valid JSON object — no markdown, no explanation, no extra text.
 
@@ -49,7 +79,7 @@ Data:
 - Total Expenses: $${totalExpenses.toFixed(2)}
 - Net Balance: $${(totalIncome - totalExpenses).toFixed(2)}
 - Expenses by category: ${categoryBreakdown || 'None'}
-- Monthly subscriptions: $${monthlySubTotal.toFixed(2)}
+- Monthly subscriptions: $${monthlySubTotal.toFixed(2)}${cancelledSection}
 
 Return this exact JSON structure:
 {
@@ -63,7 +93,9 @@ Return this exact JSON structure:
   ],
   "topCategory": { "name": "${topCategory ? topCategory[0] : 'N/A'}", "amount": ${topCategory ? topCategory[1].toFixed(2) : 0}, "tip": "one specific actionable tip for this category" },
   "savingTip": "one specific money-saving action they can take right now"
-}`;
+}
+
+${cancelledSection ? 'If subscriptions were cancelled this month, celebrate it in the overview or insights (e.g. "You cancelled ChatGPT saving $252/year 🎉").' : ''}`;
 
   try {
     const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
@@ -75,7 +107,6 @@ Return this exact JSON structure:
     });
 
     const raw = message.content[0].text.trim();
-    // Strip markdown code fences if present
     const cleaned = raw.replace(/^```(?:json)?\n?/, '').replace(/\n?```$/, '').trim();
     let summary;
     try {

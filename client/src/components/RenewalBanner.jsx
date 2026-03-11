@@ -6,7 +6,7 @@ export default function RenewalBanner({ alerts }) {
   return (
     <div data-testid="renewal-banner" style={{ marginBottom: '24px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
       {alerts.map((sub) => {
-        const raw = differenceInCalendarDays(new Date(sub.nextRenewalDate), new Date());
+        const raw = differenceInCalendarDays(new Date(sub.nextBillingDate), new Date());
         const daysLeft = Math.max(0, raw);
         const isToday = daysLeft === 0;
 
@@ -33,7 +33,7 @@ export default function RenewalBanner({ alerts }) {
             <span style={{ fontSize: '16px' }}>{isToday ? '🔴' : '🔔'}</span>
             <span>
               <strong>{sub.name}</strong> renews {label} — ${Number(sub.amount).toFixed(2)}/
-              {sub.billingCycle === 'MONTHLY' || sub.billingCycle === 'monthly' ? 'mo' : 'yr'}
+mo
             </span>
           </div>
         );
