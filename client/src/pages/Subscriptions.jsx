@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useLayoutEffect } from 'react';
 import { differenceInCalendarDays, format } from 'date-fns';
 import {
   getSubscriptions, createSubscription, updateSubscription, cancelSubscription,
@@ -16,6 +16,16 @@ const SERVICE_ICONS = {
 const MONTH_NAMES = ['January','February','March','April','May','June','July','August','September','October','November','December'];
 
 const EMPTY_FORM = { name: '', amount: '', startDate: '', category: 'Entertainment' };
+
+function useWindowWidth() {
+  const [width, setWidth] = useState(window.innerWidth);
+  useLayoutEffect(() => {
+    const handler = () => setWidth(window.innerWidth);
+    window.addEventListener('resize', handler);
+    return () => window.removeEventListener('resize', handler);
+  }, []);
+  return width;
+}
 
 function getServiceIcon(name) {
   const key = Object.keys(SERVICE_ICONS).find(k => name?.toLowerCase().includes(k.toLowerCase()));
@@ -165,6 +175,10 @@ function SubCard({ sub, showDaysBadge, onEdit, onCancel }) {
 }
 
 export default function Subscriptions() {
+  const w = useWindowWidth();
+  const isMobile = w < 640;
+  const isTablet = w < 1024;
+
   const now = new Date();
   const [month, setMonth] = useState(now.getMonth() + 1);
   const [year, setYear]   = useState(now.getFullYear());
@@ -273,24 +287,24 @@ export default function Subscriptions() {
   return (
     <div>
       {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '28px', flexWrap: 'wrap', gap: '12px' }}>
+      <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', alignItems: isMobile ? 'flex-start' : 'center', justifyContent: 'space-between', marginBottom: '28px', gap: '12px' }}>
         <div>
-          <h1 style={{ fontSize: '26px', fontWeight: 700, color: '#1A1A2E', margin: 0 }}>Subscriptions</h1>
+          <h1 style={{ fontSize: isMobile ? '22px' : '26px', fontWeight: 700, color: '#1A1A2E', margin: 0 }}>Subscriptions</h1>
           <p style={{ fontSize: '14px', color: '#8B8FA8', marginTop: '4px' }}>Track your recurring payments</p>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <select value={month} onChange={e => setMonth(Number(e.target.value))} style={selStyle}>
+        <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '10px', width: isMobile ? '100%' : 'auto' }}>
+          <select value={month} onChange={e => setMonth(Number(e.target.value))} style={{ ...selStyle, flex: isMobile ? '1 1 auto' : 'none' }}>
             {MONTH_NAMES.map((m, i) => <option key={m} value={i + 1}>{m}</option>)}
           </select>
-          <select value={year} onChange={e => setYear(Number(e.target.value))} style={selStyle}>
+          <select value={year} onChange={e => setYear(Number(e.target.value))} style={{ ...selStyle, flex: isMobile ? '1 1 auto' : 'none' }}>
             {[2024, 2025, 2026, 2027].map(y => <option key={y} value={y}>{y}</option>)}
           </select>
-          <button className="btn-primary" onClick={openAdd}>+ Add Subscription</button>
+          <button className="btn-primary" onClick={openAdd} style={{ width: isMobile ? '100%' : 'auto' }}>+ Add Subscription</button>
         </div>
       </div>
 
       {/* Summary cards */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '16px', marginBottom: '32px' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : isTablet ? 'repeat(3, 1fr)' : 'repeat(3, 1fr)', gap: '16px', marginBottom: '32px' }}>
         <div className="fintech-card" style={{ padding: '20px 24px' }}>
           <div style={{ fontSize: '12px', fontWeight: 600, color: '#8B8FA8', textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: '8px' }}>Monthly Cost</div>
           <div style={{ fontSize: '24px', fontWeight: 700, color: '#6C63FF' }}>{loading ? '—' : `$${monthlyCost.toFixed(2)}`}</div>
@@ -384,7 +398,7 @@ export default function Subscriptions() {
                 <input className="input-field" placeholder="e.g. Netflix, Spotify" value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} />
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: '12px' }}>
                 <div>
                   <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#1A1A2E', marginBottom: '6px' }}>Monthly Amount</label>
                   <input className="input-field" type="number" min="0" step="0.01" placeholder="0.00" value={form.amount} onChange={e => setForm(f => ({ ...f, amount: e.target.value }))} />
@@ -421,7 +435,7 @@ export default function Subscriptions() {
       {/* Cancel Confirmation Modal */}
       {cancelModal.show && cancelModal.sub && (
         <div className="modal-overlay" onClick={e => e.target === e.currentTarget && closeCancelModal()}>
-          <div className="modal-card" style={{ maxWidth: '420px' }}>
+          <div className="modal-card" style={{ maxWidth: '420px', width: isMobile ? '100%' : undefined, margin: isMobile ? '0' : undefined }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '14px', marginBottom: '20px' }}>
               <div style={{ width: '48px', height: '48px', borderRadius: '14px', flexShrink: 0, background: 'linear-gradient(135deg, #FF6B6B22, #FF444411)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '24px' }}>
                 {getServiceIcon(cancelModal.sub.name)}
